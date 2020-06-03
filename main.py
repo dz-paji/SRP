@@ -52,10 +52,11 @@ class proxy(StreamRequestHandler):
             remote = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             remote.connect((addr, port))
 
-            #it gives server's ip and socks port for this socket connection
-            bind_address = remote.getsockname()
+            #it gives server's ip and socks port for client's connection.
+            bnd = remote.getsockname()
+            self.connection.sendall(struct.pack('!4BIH', 5, 0, 0, 3, bnd[0], bnd[1]))
         elif cmd == 2:
-            pass
+            return False
 
     def handle(self):
         # Gather header
@@ -69,12 +70,15 @@ class proxy(StreamRequestHandler):
         if 2 not in set(methods):
             self.connection.sendall(struct.pack('!BB', ver, 255))
             self.server.close_request(self.request)
+            return        
+        self.connection.sendall(struct.pack('!BB', ver, 2))
+
+        if self.authHandler != True:
             return
 
-        if self.cmdHandler() != True:
-            return
-        
-        self.connection.sendall(struct.pack('!BB', ver, 2))
+        while True:
+            self.cmdHandler()
+
 
 if __name__ == '__main__':
     host, port = '127.0.0.1', 19909
