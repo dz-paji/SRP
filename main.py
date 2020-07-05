@@ -14,9 +14,9 @@ class proxy(StreamRequestHandler):
             methods.append(ord(self.connection.recv(1)))
         return methods
 
-    # 
     def authHandler(self):
         ver = ord(self.connection.recv(1))
+        assert ver == 5
 
         ulen = ord(self.connection.recv(1))
         uname = self.connection.recv(ulen).decode('utf-8')
@@ -31,8 +31,16 @@ class proxy(StreamRequestHandler):
         self.connection.sendall(response)
         return False
 
+    def listenHandler(self, host, port):
+        addr = (host, port)
+        listenLocal = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        listenLocal.connect(addr)
+
+
     def cmdHandler(self):
         ver, cmd, rsv, atyp = struct.unpack('!4B', self.connection.recv(4))
+        assert ver == 5
+        assert rsv == 0
 
         if atyp == 1:
             self.connection.sendall(struct.pack('!4BIH', 5, 8, 0, 1, 5))
@@ -41,7 +49,7 @@ class proxy(StreamRequestHandler):
         elif atyp == 3:
             domainLength = ord(self.connection.recv(1)[0])
             addr = self.connection.recv(domainLength)
-            if addr != 'ipv4.ip.sb':
+            if addr != 'ipauth.app.dev':
                 self.connection.sendall(struct.pack('!4BIH', 5, 8, 0, 1, 5))
                 self.server.close_request(self.request)
                 return False
@@ -56,7 +64,7 @@ class proxy(StreamRequestHandler):
             bnd = remote.getsockname()
             self.connection.sendall(struct.pack('!4BIH', 5, 0, 0, 3, bnd[0], bnd[1]))
         elif cmd == 2:
-            return False
+            self.listenHandler(host='0.0.0.0', port=port)
 
     def handle(self):
         # Gather header
@@ -78,6 +86,8 @@ class proxy(StreamRequestHandler):
 
         while True:
             self.cmdHandler()
+
+
 
 
 if __name__ == '__main__':

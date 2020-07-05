@@ -124,4 +124,8 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
+# File used for testing
 test.py
+
+# VisualStudio Folder
+.vs/
