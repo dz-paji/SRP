@@ -1,11 +1,15 @@
 import struct
 import socket
+import select
 from socketserver import ThreadingMixIn, TCPServer, StreamRequestHandler
 
 class socksServer(ThreadingMixIn, TCPServer):
     pass
 
 class proxy(StreamRequestHandler):
+
+    # Configurable option
+    buffer_size = 1024
 
     # Get methods
     def getMethods(self, i):
@@ -64,7 +68,23 @@ class proxy(StreamRequestHandler):
             bnd = remote.getsockname()
             self.connection.sendall(struct.pack('!4BIH', 5, 0, 0, 3, bnd[0], bnd[1]))
         elif cmd == 2:
-            self.listenHandler(host='0.0.0.0', port=port)
+            local = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            local.bind(('', 19911))
+            local.listen(5)
+            local_in, in_addr = local.accept()
+            while True:
+                r, w, e = select.select([local_in, self.connection],[],[])
+                if local_in in r:
+                    data = local_in.recv(1024)
+                    print('remote:', data)
+                    self.connection.send(data)
+
+                if self.connection in r:
+                    data = self.connection.recv(1024)
+                    print('client:', data)
+                    local_in.sendall(data)
+
+            
 
     def handle(self):
         # Gather header
